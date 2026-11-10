@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AB Points Cloud 24/7 - لوحة التحكم السحابية الشاملة</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Cairo', sans-serif; background-color: #0b0e14; color: #e2e8f0; }
+    .kick-green { color: #53fc18; }
+    .bg-kick-green { background-color: #53fc18; color: #000; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- الهيدر -->
+    <header class="bg-[#141923] p-6 rounded-2xl border border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-xl bg-kick-green flex items-center justify-center font-extrabold text-2xl shadow-lg">AB</div>
+        <div>
+          <h1 class="text-2xl font-extrabold flex items-center gap-2">
+            سيرفر بوت <span class="kick-green">ab points</span> السحابي (24/7)
+          </h1>
+          <p class="text-gray-400 text-sm">يراقب اللايف، يرحب بالمشاهدين بالمنشن، ويرصد مشتريات متجر النقاط حتى وجهازك مطفي!</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="simulatePurchase()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
+          ⚡ تجربة عملية شراء
+        </button>
+        <span id="liveBadge" class="px-4 py-2 rounded-xl bg-gray-900 text-gray-300 border border-gray-700 text-sm font-bold">
+          📡 يراقب القناة 24/7
+        </span>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- العمود الأيمن: الشات والطلبات -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- إرسال رسالة للشات -->
+        <div class="bg-[#141923] p-6 rounded-2xl border border-gray-800">
+          <h2 class="text-lg font-bold mb-4">💬 إرسال رسالة فورية في شات Kick (من الموبايل أو الكمبيوتر):</h2>
+          <div class="flex gap-3">
+            <input id="manualMsg" onkeydown="if(event.key==='Enter') sendManual()" type="text" placeholder="اكتب رسالتك هنا (مثال: منورين يا أبطال @username)..." class="flex-1 bg-[#0b0e14] border border-gray-700 rounded-xl px-4 py-3 text-sm">
+            <button onclick="sendManual()" class="bg-kick-green font-extrabold px-6 py-3 rounded-xl text-sm cursor-pointer">إرسال 🚀</button>
+          </div>
+        </div>
+
+        <!-- سجل المشتريات -->
+        <div class="bg-[#141923] p-6 rounded-2xl border border-gray-800">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold">🛒 طلبات الشراء من متجر النقاط (Channel Points):</h2>
+            <span id="ordersCount" class="text-xs bg-gray-800 px-3 py-1 rounded-full">0 طلبات</span>
+          </div>
+          <div id="ordersList" class="space-y-3 max-h-[500px] overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- العمود الأيسر: الإعدادات الشاملة -->
+      <div class="space-y-6">
+        <div class="bg-[#141923] p-6 rounded-2xl border border-gray-800 space-y-4">
+          <h2 class="text-lg font-bold text-[#53fc18]">⚙️ إعدادات التشغيل الأوتوماتيكي 24/7</h2>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-gray-400">اسم القناة (Kick)</label>
+              <input id="cfgChannel" type="text" value="abgaming_eg" class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs text-gray-400">رقم الشات (Chatroom ID)</label>
+              <input id="cfgChatroom" type="text" placeholder="مثال: 123456" class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400">كود جلسة البوت (session_token من كوكيز Kick لإرسال الرسائل):</label>
+            <input id="cfgToken" type="password" placeholder="الصق كود session_token هنا..." class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-2 text-sm mt-1">
+          </div>
+
+          <hr class="border-gray-800">
+
+          <div class="space-y-2 text-sm">
+            <label class="flex items-center justify-between cursor-pointer">
+              <span>🔴 إعلان تلقائي أول ما يفتح اللايف</span>
+              <input id="cfgLiveEn" type="checkbox" checked class="w-4 h-4 accent-[#53fc18]">
+            </label>
+            <input id="cfgLiveMsg" type="text" class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-2 text-xs">
+
+            <label class="flex items-center justify-between cursor-pointer pt-2">
+              <span>👋 الترحيب تلقائياً باللي يدخل اللايف بالمنشن</span>
+              <input id="cfgWelcomeEn" type="checkbox" checked class="w-4 h-4 accent-[#53fc18]">
+            </label>
+            <input id="cfgWelcomeMsg" type="text" class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-2 text-xs">
+
+            <label class="flex items-center justify-between cursor-pointer pt-2">
+              <span>🛒 الرد التلقائي بالمنشن عند الشراء من المتجر</span>
+              <input id="cfgReplyEn" type="checkbox" checked class="w-4 h-4 accent-[#53fc18]">
+            </label>
+            <textarea id="cfgReplyTpl" rows="2" class="w-full bg-[#0b0e14] border border-gray-700 rounded-xl p-2 text-xs"></textarea>
+          </div>
+
+          <button onclick="saveSettings()" class="w-full bg-kick-green font-extrabold py-3 rounded-xl text-sm cursor-pointer">
+            💾 حفظ الإعدادات وتشغيل الرادار
+          </button>
+        </div>
+
+        <!-- السجل المباشر -->
+        <div class="bg-[#141923] p-5 rounded-2xl border border-gray-800">
+          <h3 class="text-xs font-bold text-gray-400 mb-2">📡 رادار الكون المباشر (سجل النشاط):</h3>
+          <div id="logBox" class="bg-[#0b0e14] p-3 rounded-xl border border-gray-800 h-48 overflow-y-auto text-[11px] font-mono space-y-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let state = { config: {}, redemptions: [] };
+
+    async function loadState() {
+      const res = await fetch('/api/state');
+      state = await res.json();
+      const c = state.config;
+      document.getElementById('cfgChannel').value = c.channelName || 'abgaming_eg';
+      document.getElementById('cfgChatroom').value = c.chatroomId || '';
+      document.getElementById('cfgToken').value = c.sessionToken || '';
+      document.getElementById('cfgLiveEn').checked = c.liveAnnounceEnabled !== false;
+      document.getElementById('cfgLiveMsg').value = c.liveMessage || '';
+      document.getElementById('cfgWelcomeEn').checked = c.welcomeEnabled !== false;
+      document.getElementById('cfgWelcomeMsg').value = c.welcomeMessage || '';
+      document.getElementById('cfgReplyEn').checked = c.autoReplyEnabled !== false;
+      document.getElementById('cfgReplyTpl').value = c.replyTemplate || '';
+      renderOrders();
+    }
+
+    function renderOrders() {
+      document.getElementById('ordersCount').innerText = state.redemptions.length + ' طلبات';
+      const box = document.getElementById('ordersList');
+      if (!state.redemptions.length) {
+        box.innerHTML = '<p class="text-gray-500 text-center py-8 text-sm">لا توجد طلبات شراء حتى الآن.</p>';
+        return;
+      }
+      box.innerHTML = state.redemptions.map(o => `
+        <div class="bg-[#0b0e14] p-4 rounded-xl border border-gray-800 flex items-center justify-between">
+          <div>
+            <span class="font-bold text-[#53fc18]">@${o.username}</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-gray-800 mr-2">${o.status === 'completed' ? 'تم التسليم ✅' : 'قيد الانتظار ⏳'}</span>
+            <p class="text-sm font-bold mt-1">اشترى: ${o.rewardTitle}</p>
+          </div>
+          <button onclick="confirmOrder('${o.id}', '${o.username}', '${o.rewardTitle}')" class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer">
+            تأكيد وإرسال بالمنشن ✅
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function saveSettings() {
+      const payload = {
+        channelName: document.getElementById('cfgChannel').value.trim(),
+        chatroomId: document.getElementById('cfgChatroom').value.trim(),
+        sessionToken: document.getElementById('cfgToken').value.trim(),
+        liveAnnounceEnabled: document.getElementById('cfgLiveEn').checked,
+        liveMessage: document.getElementById('cfgLiveMsg').value,
+        welcomeEnabled: document.getElementById('cfgWelcomeEn').checked,
+        welcomeMessage: document.getElementById('cfgWelcomeMsg').value,
+        autoReplyEnabled: document.getElementById('cfgReplyEn').checked,
+        replyTemplate: document.getElementById('cfgReplyTpl').value
+      };
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      alert('تم حفظ الإعدادات بنجاح!');
+    }
+
+    async function sendManual() {
+      const inp = document.getElementById('manualMsg');
+      if (!inp.value.trim()) return;
+      await fetch('/api/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: inp.value.trim() })
+      });
+      inp.value = '';
+    }
+
+    async function simulatePurchase() {
+      await fetch('/api/redemptions/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'abgaming_viewer',
+          rewardTitle: 'شحن شدات فوري',
+          cost: 2500
+        })
+      });
+    }
+
+    async function confirmOrder(id, user, reward) {
+      await fetch('/api/redemptions/' + id + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'completed',
+          notifyChatMessage: `✅ يا @${user}  تم تنفيذ وتسليم طلبك [ ${reward} ] بنجاح من بوت ab points!`
+        })
+      });
+    }
+
+    socket.on('new_redemption', (item) => {
+      state.redemptions.unshift(item);
+      renderOrders();
+    });
+
+    socket.on('redemption_updated', (item) => {
+      const idx = state.redemptions.findIndex(r => r.id === item.id);
+      if (idx !== -1) state.redemptions[idx] = item;
+      renderOrders();
+    });
+
+    socket.on('bot_log', (entry) => {
+      const box = document.getElementById('logBox');
+      const d = document.createElement('div');
+      d.className = entry.type === 'error' ? 'text-red-400' : entry.type === 'purchase' ? 'text-[#53fc18] font-bold' : 'text-gray-300';
+      d.innerText = `[${entry.time}] ${entry.text}`;
+      box.prepend(d);
+    });
+
+    loadState();
+  </script>
+</body>
+</html>
